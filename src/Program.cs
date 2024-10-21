@@ -3,11 +3,7 @@ using Tensorflow;
 using static PandasNet.PandasApi;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
-
 using timeseries_prediction_example;
- 
-//var x = new WeatherPrediction();
-//x.Run();
 
 ITimeSeriesTask task;
 IDatasetV2 training_ds, val_ds, test_ds;
@@ -15,52 +11,33 @@ Series train_mean, train_std;
 
 task = new RnnModel();
 
-//optionally save for later inference
-//task.Config(new TaskOptions
-//{
-//    WeightsPath = @"timeseries_linear_v1\saved_weights.h5"
-//});
-
-task.SetModelArgs(new TimeSeriesModelArgs
-{
-    InputWidth = 3,
-    LabelWidth = 1,
-    LabelColumns = new[] { "T (degC)" }
-});
+task.Config(
+    weightsPath: null, // @"timeseries_linear_v1\saved_weights.h5",
+    inputWidth: 3,
+    labelWidth: 1,
+    labelColumns: new[] { "T (degC)" });
 
 (training_ds, val_ds, test_ds, train_mean, train_std) = task.GenerateDataset(PrepareData);
 
-//Train();
-{
-    task.Train(new TrainingOptions
-    {
-        Epochs = 1,
-        Dataset = (training_ds, val_ds)
-    });
-}
-//Test();
-{
-    Console.WriteLine("Test method");
+//train
+task.Train(training_ds, val_ds, epochs:1);
 
-    var result = task.Test(new TestingOptions
-    {
-        Dataset = test_ds
-    });
-    Console.WriteLine("Test Result");
-    Console.WriteLine(result.ToString());
-}
-//Predict();
-{
-    Console.WriteLine("Predict method");
+//test
+Console.WriteLine("Starting Test");
+var testResult = task.Test(test_ds);
+Console.WriteLine("Test Result");
+Console.WriteLine(testResult.ToString());
 
-    foreach (var (input, label) in test_ds.take(1))
-    {
-        Tensor result = task.Predict(input);
-        Console.WriteLine("Predict Result");
-        var denormalized = result * train_std + train_mean;
-        Console.WriteLine(denormalized.ToString());
-    }
+//predict
+Console.WriteLine("Starting Prediction");
+foreach (var (input, label) in test_ds.take(1))
+{
+    Tensor predictResult = task.Predict(input);
+    Console.WriteLine("Predict Result");
+    var denormalized = predictResult * train_std + train_mean;
+    Console.WriteLine(denormalized.ToString());
 }
+
 
 DataFrame PrepareData()
 {

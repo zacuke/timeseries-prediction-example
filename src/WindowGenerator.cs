@@ -3,7 +3,6 @@ using Tensorflow;
 using static PandasNet.PandasApi;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
-
 namespace timeseries_prediction_example;
 
 public class WindowGenerator

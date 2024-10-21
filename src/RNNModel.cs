@@ -1,7 +1,6 @@
 ﻿using Tensorflow.Keras;
 using Tensorflow.Keras.Engine;
 using static Tensorflow.KerasApi;
-
 namespace timeseries_prediction_example;
 
 public class RnnModel : ModelBase, ITimeSeriesTask

@@ -1,25 +1,30 @@
 ﻿using PandasNet;
 using Tensorflow;
 using Tensorflow.Keras.Engine;
-
-
 namespace timeseries_prediction_example;
 
 // https://www.tensorflow.org/tutorials/structured_data/time_series
 public class ModelBase
 {
     protected WindowGenerator _window;
-    protected TimeSeriesModelArgs _args;
-    protected TaskOptions _taskOptions;
     protected Model model;
+
+    protected string _weightsPath;
+    protected int _inputWidth;
+    protected int _labelWidth;
+    protected string[] _labelColumns;
+
     public (IDatasetV2, IDatasetV2, IDatasetV2, Series, Series) GenerateDataset<TDataSource>(Func<TDataSource> preprocess)
     {
         var ds = preprocess();
         if (ds is DataFrame df)
         {
-            _window = new WindowGenerator(input_width: _args.InputWidth, label_width: _args.LabelWidth, shift: 1,
+            _window = new WindowGenerator(input_width: _inputWidth, 
+                label_width: _labelWidth, 
+                shift: 1,
                 columns: df.columns,
-                label_columns: _args.LabelColumns);
+                label_columns: _labelColumns);
+
 
             return _window.GenerateDataset(df);
         }
@@ -27,17 +32,12 @@ public class ModelBase
             throw new NotImplementedException("");
     }
 
-    public void SetModelArgs<T>(T args)
+    public void Config(string weightsPath, int inputWidth, int labelWidth, string[] labelColumns)
     {
-        if (args is TimeSeriesModelArgs tsArgs)
-            _args = tsArgs;
-        else
-            throw new ValueError($"Please set model args as {nameof(TimeSeriesModelArgs)}");
-    }
-
-    public void Config(TaskOptions options)
-    {
-        _taskOptions = options;
+        _weightsPath = weightsPath;
+        _inputWidth = inputWidth;
+        _labelWidth = labelWidth;
+        _labelColumns = labelColumns;
     }
 
     protected virtual Model BuildModel()
@@ -45,32 +45,32 @@ public class ModelBase
         throw new NotImplementedException("");
     }
 
-    public void Train(TrainingOptions options)
+    public void Train(IDatasetV2 training_ds, IDatasetV2 val_ds, int epochs)
     {
         model = BuildModel();
-        model.fit(options.Dataset.Item1, epochs: options.Epochs, validation_data: options.Dataset.Item2);
+        model.fit(training_ds, epochs: epochs, validation_data: val_ds);
         SaveModel();
     }
 
     protected void SaveModel()
     {
-        if (_taskOptions != null && !string.IsNullOrEmpty(_taskOptions.WeightsPath))
+        if ( !string.IsNullOrEmpty(_weightsPath))
         {
-            var filePath = new FileInfo(_taskOptions.WeightsPath);
+            var filePath = new FileInfo(_weightsPath);
             Directory.CreateDirectory(filePath.Directory.FullName);
-            model.save_weights(_taskOptions.WeightsPath);
+            model.save_weights(_weightsPath);
         }
     }
 
-    public float Test(TestingOptions options)
+    public float Test(IDatasetV2 dataset)
     {
         if (model == null)
             model = BuildModel();
-        foreach (var input in options.Dataset.take(1))
+        foreach (var input in dataset.take(1))
             model.Apply(input);
-        if (_taskOptions != null && !string.IsNullOrEmpty(_taskOptions.WeightsPath))
-            model.load_weights(_taskOptions.WeightsPath);
-        var result = model.evaluate(options.Dataset);
+        if ( !string.IsNullOrEmpty(_weightsPath))
+            model.load_weights(_weightsPath);
+        var result = model.evaluate(dataset);
         return result.First(x => x.Key == "mean_absolute_error").Value;
     }
 

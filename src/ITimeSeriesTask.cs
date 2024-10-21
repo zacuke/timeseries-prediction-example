@@ -1,21 +1,17 @@
 ﻿using PandasNet;
 using Tensorflow;
-
-
 namespace timeseries_prediction_example;
 
 public interface ITimeSeriesTask
 {
     (IDatasetV2, IDatasetV2, IDatasetV2, Series, Series) GenerateDataset<TDataSource>(Func<TDataSource> ds);
 
-    void Train(TrainingOptions options);
+    void Train(IDatasetV2 training_ds, IDatasetV2 val_ds, int epochs);
 
-    void SetModelArgs<T>(T args);
-
-    float Test(TestingOptions options);
+    float Test(IDatasetV2 dataset);
 
     Tensor Predict(Tensor input);
 
-    void Config(TaskOptions options);
+    void Config(string weightsPath, int inputWidth, int labelWidth, string[] labelColumns);
 }
 
